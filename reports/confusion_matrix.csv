@@ -1,0 +1,6 @@
+,normal,tap_water_leak,washing_machine_leak,toilet_leak,pipe_fitting
+normal,145,0,0,0,0
+tap_water_leak,0,87,0,0,0
+washing_machine_leak,0,0,87,0,0
+toilet_leak,0,0,0,116,0
+pipe_fitting,0,0,0,1,144

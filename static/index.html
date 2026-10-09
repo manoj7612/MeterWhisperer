@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+  <title>The Meter Whisperer — Listen to the meter</title>
+  <meta name="description" content="AI-powered vibration intelligence for abnormal water activity." />
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <div class="site-shell">
+
+    <!-- ===================== NAV ===================== -->
+    <header class="site-nav">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">◉</span>
+        The Meter Whisperer
+      </a>
+      <nav class="nav-links">
+        <a href="#signal">The signal</a>
+        <a href="#system">How it works</a>
+        <a href="#demo">Demo</a>
+        <span class="api-status" id="api-status" title="Backend status">● connecting</span>
+      </nav>
+    </header>
+
+    <!-- ===================== HERO ===================== -->
+    <section class="hero">
+      <div class="page-width hero-grid">
+        <div class="hero-copy">
+          <p class="section-kicker light-kicker">Listen to the meter</p>
+          <h1>The Meter<br />Whisperer</h1>
+          <p class="hero-sub">
+            Small leaks and abnormal water use rarely announce themselves. They
+            persist in the background — hidden behind walls, inside tanks, or in
+            the meter's own quiet rotation.
+          </p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="#demo">Try the live demo</a>
+            <a class="btn btn-ghost" href="#signal">See the signal</a>
+          </div>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <div class="meter-body">
+            <div class="meter-face">
+              <div class="meter-rings ring-one"></div>
+              <div class="meter-rings ring-two"></div>
+              <div class="meter-needle"></div>
+              <div class="meter-center"></div>
+              <div class="meter-reading">0.0</div>
+              <div class="meter-unit">m³</div>
+            </div>
+            <div class="meter-cap"></div>
+            <div class="meter-foot"></div>
+          </div>
+          <div class="sensor-clip">
+            <span class="sensor-dot"></span>
+            <span>ACCELEROMETER</span>
+          </div>
+          <div class="signal-orbit orbit-a"></div>
+          <div class="signal-orbit orbit-b"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== SIGNAL LAB ===================== -->
+    <section class="system-section section-paper" id="signal">
+      <div class="page-width">
+        <p class="section-kicker">04 / The signal</p>
+        <h2>Raw vibration<br /><span>becomes legible.</span></h2>
+        <p class="section-lead">One time window. Four ways to see the same invisible event.</p>
+
+        <div class="signal-lab">
+          <div class="signal-lab-top">
+            <div class="lab-status">
+              <span class="status-dot"></span>
+              <span id="lab-status-text">Simulated sensor window · 8.0s</span>
+            </div>
+            <div class="lab-label">Interactive visual</div>
+          </div>
+
+          <div class="signal-display">
+            <div class="display-caption" id="display-caption">raw acceleration</div>
+            <canvas id="wave-canvas" width="760" height="220"></canvas>
+            <div class="wave-ticks">
+              <span>0s</span>
+              <span>time window</span>
+              <span>8s</span>
+            </div>
+          </div>
+
+          <div class="view-tabs" role="tablist">
+            <button class="view-tab selected" data-mode="raw">Raw</button>
+            <button class="view-tab" data-mode="processed">Processed</button>
+            <button class="view-tab" data-mode="frequency">Frequency</button>
+            <button class="view-tab" data-mode="interpretation">Interpretation</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== SYSTEM ===================== -->
+    <section class="system-section" id="system">
+      <div class="page-width">
+        <p class="section-kicker">How it works</p>
+        <h2>The meter already knows.</h2>
+        <p class="section-lead">
+          Water movement causes mechanical activity inside a traditional meter.
+          That activity produces vibration. A clip-on accelerometer turns those
+          vibrations into a signal, and a trained model turns that signal into a
+          calm, actionable explanation.
+        </p>
+        <div class="pipeline">
+          <div class="pipeline-step"><span class="step-num">1</span><strong>Capture</strong><span>Clip-on accelerometer</span></div>
+          <div class="pipeline-step"><span class="step-num">2</span><strong>Extract</strong><span>Time + frequency features</span></div>
+          <div class="pipeline-step"><span class="step-num">3</span><strong>Classify</strong><span>Random Forest model</span></div>
+          <div class="pipeline-step"><span class="step-num">4</span><strong>Explain</strong><span>Severity + action</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== DEMO ===================== -->
+    <section class="system-section section-paper" id="demo">
+      <div class="page-width">
+        <p class="section-kicker">Interactive AI demonstration</p>
+        <h2>Hear the leak.</h2>
+        <p class="section-lead">
+          Change the pattern to see how the product turns signal into a calm,
+          actionable explanation.
+        </p>
+
+        <div class="demo-card">
+          <div class="demo-controls">
+            <div class="demo-card-label"><span class="live-dot"></span> Interactive AI demonstration</div>
+            <div class="demo-controls-title">Activity pattern</div>
+            <div class="activity-options" id="activity-options">
+              <!-- populated by JS -->
+            </div>
+            <div class="demo-disclaimer" id="demo-disclaimer">Waiting for backend…</div>
+          </div>
+
+          <div class="demo-output tone-quiet" id="demo-output">
+            <div class="output-top">
+              <span>AI interpretation</span>
+              <span class="inference-tag">Inference</span>
+            </div>
+            <div class="output-pattern">
+              <div class="pattern-bars" id="pattern-bars"></div>
+            </div>
+            <div class="output-label" id="output-label">No abnormal activity</div>
+            <div class="output-meta">
+              <span class="meta-chip" id="output-severity">Severity: —</span>
+              <span class="meta-chip" id="output-confidence">Confidence: —</span>
+              <span class="meta-chip" id="output-rms">RMS: —</span>
+            </div>
+            <p class="output-explanation" id="output-explanation"></p>
+            <p class="output-action" id="output-action"></p>
+          </div>
+        </div>
+
+        <!-- Real recordings -->
+        <div class="recordings-card">
+          <div class="recordings-head">
+            <div>
+              <div class="demo-card-label"><span class="live-dot"></span> Real sensor recordings</div>
+              <p class="recordings-note">Load a CSV from <code>data/raw/</code> and run a real prediction.</p>
+            </div>
+          </div>
+          <div class="recordings-controls">
+            <select id="recording-class" aria-label="Class"></select>
+            <select id="recording-file" aria-label="File"></select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== FOOTER ===================== -->
+    <footer class="site-footer">
+      <div class="page-width">
+        <span>The Meter Whisperer</span>
+        <span class="footer-note">Prototype — real-world performance requires validation with labelled sensor recordings.</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
