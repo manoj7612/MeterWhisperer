@@ -342,6 +342,167 @@ async function loadRecording(cls, file) {
 // =====================================================
 // RENDERING
 // =====================================================
+async function apiPost(path, formData) {
+  const res = await fetch(API_BASE + path, { method: "POST", body: formData });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+function toneColor(tone) {
+  const map = {
+    quiet: "#9fb0c0",
+    green: "#7fd1c0",
+    blue: "#6ea8d8",
+    orange: "#f5a65b",
+    red: "#e07878",
+  };
+  return map[tone] || "#f5a65b";
+}
+
+function parseUploadCsv(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) throw new Error("CSV has no data rows.");
+  const header = lines[0].split(",").map((h) => h.trim());
+  const need = ["time_s", "acc_x_m_s2", "acc_y_m_s2", "acc_z_m_s2"];
+  const missing = need.filter((c) => !header.includes(c));
+  if (missing.length) throw new Error("CSV is missing columns: " + missing.join(", "));
+  const idx = need.map((c) => header.indexOf(c));
+  const time_s = [], x = [], y = [], z = [];
+  for (let r = 1; r < lines.length; r++) {
+    if (!lines[r].trim()) continue;
+    const cells = lines[r].split(",");
+    if (cells.length < header.length) continue;
+    time_s.push(Number(cells[idx[0]]));
+    x.push(Number(cells[idx[1]]));
+    y.push(Number(cells[idx[2]]));
+    z.push(Number(cells[idx[3]]));
+  }
+  if (time_s.length < 200) throw new Error("Need at least 200 readings in the CSV.");
+  if (time_s.some((v) => !Number.isFinite(v)) || [...x, ...y, ...z].some((v) => !Number.isFinite(v))) {
+    throw new Error("CSV contains non-numeric readings.");
+  }
+  return { time_s, acc_x_m_s2: x, acc_y_m_s2: y, acc_z_m_s2: z };
+}
+
+function drawLiveCanvas(magnitude, color) {
+  const canvas = $("live-canvas");
+  if (!canvas || !magnitude || !magnitude.length) return;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(34,48,63,0.5)";
+  ctx.lineWidth = 1;
+  for (let gy = 0; gy <= 4; gy++) {
+    const y = (H / 4) * gy;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+  const max = Math.max(...magnitude.map(Math.abs), 1e-9);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  magnitude.forEach((v, i) => {
+    const px = (i / (magnitude.length - 1)) * W;
+    const py = H / 2 - (v / max) * (H / 2 - 12);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+}
+
+async function handleLiveUpload(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  $("live-status").textContent = `Uploading ${file.name}…`;
+  $("live-error").hidden = true;
+  $("live-block").hidden = true;
+
+  try {
+    // Plot the uploaded waveform immediately from the local file.
+    const text = await file.text();
+    const wave = parseUploadCsv(text);
+    drawLiveCanvas(magnitudeOf(wave), "#f5a65b");
+    $("live-status").textContent = `Analysing ${file.name}…`;
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    const { ok, data } = await apiPost("/api/live-preview", fd);
+
+    if (!ok) {
+      $("live-error").textContent = data.error || "Live preview failed.";
+      $("live-error").hidden = false;
+      $("live-status").textContent = "Choose another file.";
+      return;
+    }
+
+    if (data.success) {
+      renderLivePreview(data);
+    } else {
+      $("live-error").textContent = data.error || "Live preview failed.";
+      $("live-error").hidden = false;
+      $("live-status").textContent = "Choose another file.";
+    }
+  } catch (err) {
+    $("live-error").textContent = err && err.message ? err.message : "Live preview failed.";
+    $("live-error").hidden = false;
+    $("live-status").textContent = "Choose another file.";
+  }
+}
+
+function renderLivePreview(data) {
+  const block = $("live-block");
+  block.hidden = false;
+  block.className = `demo-output tone-${data.tone || "quiet"}`;
+
+  $("live-label").textContent = data.source || data.predicted_class || "—";
+  $("live-severity").textContent = `Severity: ${data.severity || "—"}`;
+  $("live-confidence").textContent =
+    `Confidence: ${data.confidence_percent != null ? data.confidence_percent + "%" : "—"}`;
+  $("live-rms").textContent =
+    `RMS: ${data.average_vibration_rms != null ? data.average_vibration_rms : "—"}`;
+  $("live-explanation").textContent = data.explanation || "";
+  $("live-action").textContent = data.action || "";
+
+  if (data.magnitude && data.magnitude.length) {
+    drawLiveCanvas(data.magnitude, toneColor(data.tone));
+  }
+
+  const reasons = $("live-reasons");
+  reasons.innerHTML = "";
+  if (data.reasons && data.reasons.length) {
+    data.reasons.forEach((r) => {
+      const li = document.createElement("li");
+      li.textContent = r;
+      reasons.appendChild(li);
+    });
+  } else {
+    const li = document.createElement("li");
+    li.textContent = "No detailed reasons available.";
+    reasons.appendChild(li);
+  }
+
+  const suggestions = $("live-suggestions");
+  suggestions.innerHTML = "";
+  if (data.suggestions && data.suggestions.length) {
+    data.suggestions.forEach((s) => {
+      const li = document.createElement("li");
+      li.textContent = s;
+      suggestions.appendChild(li);
+    });
+  } else {
+    const li = document.createElement("li");
+    li.textContent = "No improvement suggestions available.";
+    suggestions.appendChild(li);
+  }
+
+  const fname = data.filename ? ` · ${data.filename}` : "";
+  $("live-status").textContent =
+    `Live preview${fname} · ${data.predicted_class} · ${data.severity} · ${data.confidence_percent || "—"}%`;
+}
+
 function renderScenarioButtons() {
   const container = $("activity-options");
   container.innerHTML = "";
@@ -474,6 +635,8 @@ function init() {
     const file = $("recording-file").value;
     if (cls && file) loadRecording(cls, file);
   });
+
+  $("live-upload").addEventListener("change", handleLiveUpload);
 
   // start with the default scenario and check backend health
   checkHealth();

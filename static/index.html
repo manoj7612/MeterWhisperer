@@ -36,7 +36,7 @@
             the meter's own quiet rotation.
           </p>
           <div class="hero-cta">
-            <a class="btn btn-primary" href="#demo">Try the live demo</a>
+            <a class="btn btn-primary" href="#live-preview">Try the live demo</a>
             <a class="btn btn-ghost" href="#signal">See the signal</a>
           </div>
         </div>
@@ -174,7 +174,64 @@
       </div>
     </section>
 
-    <!-- ===================== FOOTER ===================== -->
+    <!-- ===================== LIVE PREVIEW ===================== -->
+    <section class="system-section" id="live-preview">
+      <div class="page-width">
+        <p class="section-kicker">Live leak check</p>
+        <h2>Try it with your own recording.</h2>
+        <p class="section-lead">
+          Upload a .csv recorder file in the same format as the existing recordings.
+          The model will classify it, identify the probable leak type, explain the
+          reason, and give suggestions for improvement.
+        </p>
+
+        <div class="demo-card">
+          <div class="demo-controls">
+            <div class="demo-card-label"><span class="live-dot"></span> Live preview</div>
+            <div class="demo-controls-title">Sensor file</div>
+            <div class="upload-wrap">
+              <label class="btn btn-primary" id="live-upload-btn">
+                <input type="file" id="live-upload" accept=".csv" hidden />
+                Upload CSV
+              </label>
+            </div>
+            <p class="recordings-note" id="live-status">Choose a CSV file to run the live preview.</p>
+            <p class="warning" id="live-error" hidden></p>
+            <div class="demo-disclaimer">Same columns as the data/raw/ recordings: time_s, acc_x_m_s2, acc_y_m_s2, acc_z_m_s2.</div>
+          </div>
+
+          <div class="demo-output tone-quiet" id="live-block" hidden>
+            <div class="output-top">
+              <span>AI interpretation</span>
+              <span class="inference-tag">Live preview</span>
+            </div>
+            <div class="output-pattern">
+              <canvas id="live-canvas" width="760" height="240"></canvas>
+            </div>
+            <div class="output-label" id="live-label">—</div>
+            <div class="output-meta">
+              <span class="meta-chip" id="live-severity">Severity: —</span>
+              <span class="meta-chip" id="live-confidence">Confidence: —</span>
+              <span class="meta-chip" id="live-rms">RMS: —</span>
+            </div>
+            <p class="output-explanation" id="live-explanation"></p>
+            <p class="output-action" id="live-action"></p>
+            <div class="live-lists">
+              <div>
+                <div class="block-label">Possible reasons</div>
+                <ul class="blk-list" id="live-reasons"></ul>
+              </div>
+              <div>
+                <div class="block-label">Suggestions</div>
+                <ul class="blk-list" id="live-suggestions"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
     <footer class="site-footer">
       <div class="page-width">
         <span>The Meter Whisperer</span>
@@ -186,3 +243,4 @@
   <script src="/static/js/app.js"></script>
 </body>
 </html>
+

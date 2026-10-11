@@ -37,30 +37,70 @@ CLASS_INFO = {
         "explanation": "The pattern is quiet and consistent with a resting meter.",
         "action": "Continue monitoring",
         "tone": "quiet",
+        "reasons": [
+            "No sustained vibration above the resting baseline was detected.",
+            "The signal is consistent with a quiet water meter at rest.",
+        ],
+        "suggestions": [
+            "Keep monitoring as usual.",
+            "Re-record later if you suspect an intermittent problem.",
+        ],
     },
     "tap_water_leak": {
         "label": "Possible faucet / tap",
         "explanation": "Short bursts of vibration look more consistent with intermittent use.",
         "action": "Check for a tap that was left slightly open.",
         "tone": "green",
+        "reasons": [
+            "Short vibration bursts are consistent with intermittent faucet use or dripping.",
+            "The signal rises briefly above the resting baseline and then settles.",
+        ],
+        "suggestions": [
+            "Check taps and faucets for drips or valves left slightly open.",
+            "Tighten or replace worn washers and aerators.",
+        ],
     },
     "washing_machine_leak": {
         "label": "Possible washing machine",
         "explanation": "A changing signature suggests time-bounded, cyclical activity.",
         "action": "Compare the timing with a scheduled wash cycle.",
         "tone": "blue",
+        "reasons": [
+            "Cyclical vibration changes can come from rotating appliances or fill/drain cycles.",
+            "The pattern is time-bounded rather than constant.",
+        ],
+        "suggestions": [
+            "Compare the recording time with appliance or wash-cycle schedules.",
+            "Check inlet hoses, drain hose, and nearby pipe mounts for looseness.",
+        ],
     },
     "toilet_leak": {
         "label": "Possible toilet leak",
         "explanation": "A persistent pulsing pattern suggests water movement similar to a toilet refill leak.",
         "action": "Check the toilet tank flapper, fill valve, and overflow tube.",
         "tone": "red",
+        "reasons": [
+            "Repeated pulsing can occur when a toilet fill valve cycles or a flapper leaks.",
+            "The signal persists instead of settling to a resting baseline.",
+        ],
+        "suggestions": [
+            "Inspect the tank flapper, fill valve, and overflow tube.",
+            "Listen for periodic refills and check the water level in the tank.",
+        ],
     },
     "pipe_fitting": {
         "label": "Possible pipe / fitting issue",
         "explanation": "Irregular bursts can indicate vibration from a loose pipe, fitting, or intermittent pressure change.",
         "action": "Inspect nearby pipe joints and fittings for vibration or seepage.",
         "tone": "orange",
+        "reasons": [
+            "Irregular mechanical bursts can come from loose pipe mounts or stressed fittings.",
+            "Pressure changes can also create intermittent vibration.",
+        ],
+        "suggestions": [
+            "Inspect nearby pipe joints, valves, and brackets for looseness or seepage.",
+            "Tighten mounts and monitor whether the vibration repeats.",
+        ],
     },
 }
 
@@ -200,34 +240,32 @@ def calculate_severity(predicted_class, average_rms):
 # PREDICTION API
 # =====================================================
 
-@app.post("/api/predict")
-def predict():
+def run_inference(payload):
+    """Run model inference on a sensor-reading payload.
 
-    try:
-        payload = request.get_json(silent=True)
+    Returns (result_dict, status_code).
+    """
+    if not isinstance(payload, dict):
+        return {"error": "Send a JSON object containing sensor readings."}, 400
 
-        if not isinstance(payload, dict):
-            return jsonify({
-                "error": "Send a JSON object containing sensor readings."
-            }), 400
+    required_fields = [
+        "time_s",
+        "acc_x_m_s2",
+        "acc_y_m_s2",
+        "acc_z_m_s2",
+    ]
 
-        required_fields = [
-            "time_s",
-            "acc_x_m_s2",
-            "acc_y_m_s2",
-            "acc_z_m_s2",
-        ]
-
-        missing = [
+    missing = [
             key for key in required_fields
             if key not in payload
         ]
 
-        if missing:
-            return jsonify({
-                "error": f"Missing fields: {missing}"
-            }), 400
+    if missing:
+        return {
+            "error": f"Missing fields: {missing}"
+        }, 400
 
+    try:
         time_values = np.asarray(
             payload["time_s"], dtype=float
         )
@@ -244,40 +282,40 @@ def predict():
         arrays = [time_values, x, y, z]
 
         if any(a.ndim != 1 for a in arrays):
-            return jsonify({
+            return {
                 "error": "Each reading field must be a one-dimensional array."
-            }), 400
+            }, 400
 
         if len({len(a) for a in arrays}) != 1:
-            return jsonify({
+            return {
                 "error": "All reading arrays must have equal lengths."
-            }), 400
+            }, 400
 
         if len(x) < 200:
-            return jsonify({
+            return {
                 "error": "Send at least 2 seconds of readings."
-            }), 400
+            }, 400
 
         if not all(np.isfinite(a).all() for a in arrays):
-            return jsonify({
+            return {
                 "error": "Readings must contain valid finite numbers."
-            }), 400
+            }, 400
 
         time_differences = np.diff(time_values)
 
         if np.any(time_differences <= 0):
-            return jsonify({
+            return {
                 "error": "Timestamps must be strictly increasing."
-            }), 400
+            }, 400
 
         sampling_rate = 1.0 / float(
             np.median(time_differences)
         )
 
         if not 1 <= sampling_rate <= 1000:
-            return jsonify({
+            return {
                 "error": "Invalid sampling rate."
-            }), 400
+            }, 400
 
         # Combine accelerometer axes into magnitude.
         magnitude = np.sqrt(x**2 + y**2 + z**2)
@@ -286,9 +324,9 @@ def predict():
         step_size = max(1, int(1.0 * sampling_rate))
 
         if len(magnitude) < window_size:
-            return jsonify({
+            return {
                 "error": "Not enough samples for a 2-second window."
-            }), 400
+            }, 400
 
         feature_rows = []
 
@@ -328,7 +366,12 @@ def predict():
 
         info = CLASS_INFO.get(predicted_class, {})
 
-        return jsonify({
+        preview_magnitude = magnitude.tolist()
+        if len(preview_magnitude) > 1500:
+            step = max(1, len(preview_magnitude) // 1500)
+            preview_magnitude = preview_magnitude[::step][:1500]
+
+        return {
             "success": True,
             "predicted_class": predicted_class,
             "source": DISPLAY_NAMES.get(
@@ -344,24 +387,74 @@ def predict():
             ),
             "explanation": info.get("explanation", ""),
             "action": info.get("action", ""),
+            "reasons": info.get("reasons", []),
+            "suggestions": info.get("suggestions", []),
             "tone": info.get("tone", "quiet"),
+            "magnitude": [round(float(v), 6) for v in preview_magnitude],
             "note": (
                 "Prototype prediction. "
                 "Real-world performance requires validation "
                 "with labelled sensor recordings."
             ),
-        })
+        }, 200
 
     except (ValueError, TypeError) as error:
-        return jsonify({
+        return {
             "error": str(error)
-        }), 400
+        }, 400
 
     except Exception:
         app.logger.exception("Prediction request failed")
-        return jsonify({
+        return {
             "error": "Prediction failed. Check the backend terminal."
-        }), 500
+        }, 500
+
+
+@app.post("/api/predict")
+def predict():
+    payload = request.get_json(silent=True)
+    result, status = run_inference(payload)
+    return jsonify(result), status
+
+
+@app.post("/api/live-preview")
+def live_preview():
+    """Accept an uploaded CSV, reuse /api/predict, and attach the graph data."""
+    uploaded = request.files.get("file")
+
+    if uploaded is None or not uploaded.filename:
+        return jsonify({"error": "No file uploaded."}), 400
+
+    filename = uploaded.filename
+
+    if not filename.lower().endswith(".csv"):
+        return jsonify({"error": "Please upload a .csv file."}), 400
+
+    try:
+        df = pd.read_csv(uploaded)
+    except Exception:
+        return jsonify({"error": "Could not read the uploaded CSV."}), 400
+
+    required = ["time_s", "acc_x_m_s2", "acc_y_m_s2", "acc_z_m_s2"]
+    missing = [col for col in required if col not in df.columns]
+    if missing:
+        return jsonify({
+            "error": f"CSV is missing columns: {missing}"
+        }), 400
+
+    payload = {
+        col: df[col].tolist()
+        for col in required
+    }
+
+    # Reuse the existing validation and inference path.
+    result, status = run_inference(payload)
+
+    if status != 200:
+        return jsonify(result), status
+
+    result["filename"] = filename
+    return jsonify(result)
 
 
 # =====================================================
