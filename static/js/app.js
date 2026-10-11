@@ -343,8 +343,15 @@ async function loadRecording(cls, file) {
 // RENDERING
 // =====================================================
 async function apiPost(path, formData) {
-  const res = await fetch(API_BASE + path, { method: "POST", body: formData });
-  const data = await res.json().catch(() => ({}));
+  const res = await fetch(API_BASE + path, { method: "POST", body: formData, cache: "no-store" });
+  const raw = await res.text().catch(() => "");
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch (parseErr) {
+    // Non-JSON reply (proxy/WSGI HTML error page, 404, 500...). Keep a snippet.
+    data = { _raw: raw.slice(0, 300), _parseError: String(parseErr && parseErr.message || parseErr) };
+  }
   return { ok: res.ok, status: res.status, data };
 }
 
@@ -360,9 +367,11 @@ function toneColor(tone) {
 }
 
 function parseUploadCsv(text) {
-  const lines = text.trim().split(/\r?\n/);
+  // Strip BOM / comment lines so exports from spreadsheets still parse.
+  const rawLines = String(text || "").replace(/^\uFEFF/, "").split(/\r?\n/);
+  const lines = rawLines.filter((ln) => ln.trim() && !ln.trim().startsWith("#"));
   if (lines.length < 2) throw new Error("CSV has no data rows.");
-  const header = lines[0].split(",").map((h) => h.trim());
+  const header = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
   const need = ["time_s", "acc_x_m_s2", "acc_y_m_s2", "acc_z_m_s2"];
   const missing = need.filter((c) => !header.includes(c));
   if (missing.length) throw new Error("CSV is missing columns: " + missing.join(", "));
@@ -412,6 +421,19 @@ function drawLiveCanvas(magnitude, color) {
   ctx.stroke();
 }
 
+function liveFailureMessage(status, data, fallback) {
+  const bits = [];
+  if (status) bits.push(`HTTP ${status}`);
+  if (data && data.error) bits.push(data.error);
+  if (data && data._raw) {
+    const snippet = String(data._raw).replace(/\s+/g, " ").slice(0, 220);
+    if (snippet) bits.push(`Server replied: ${snippet}`);
+  }
+  if (!bits.length && fallback) bits.push(fallback);
+  if (!bits.length) bits.push("Live preview failed.");
+  return bits.join(" — ");
+}
+
 async function handleLiveUpload(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
@@ -420,28 +442,33 @@ async function handleLiveUpload(event) {
   $("live-block").hidden = true;
 
   try {
-    // Plot the uploaded waveform immediately from the local file.
-    const text = await file.text();
-    const wave = parseUploadCsv(text);
-    drawLiveCanvas(magnitudeOf(wave), "#f5a65b");
-    $("live-status").textContent = `Analysing ${file.name}…`;
-
     const fd = new FormData();
-    fd.append("file", file);
+    fd.append("file", file, file.name);
 
-    const { ok, data } = await apiPost("/api/live-preview", fd);
+    const { ok, status, data } = await apiPost("/api/live-preview", fd);
 
     if (!ok) {
-      $("live-error").textContent = data.error || "Live preview failed.";
-      $("live-error").hidden = false;
+      $("live-error").textContent = liveFailureMessage(status, data, "Live preview failed.");
       $("live-status").textContent = "Choose another file.";
+      try {
+        const text = await file.text();
+        const wave = parseUploadCsv(text);
+        drawLiveCanvas(magnitudeOf(wave), "#f5a65b");
+        $("live-error").hidden = false;
+      } catch (previewErr) {
+        $("live-error").textContent =
+          liveFailureMessage(status, data, "Live preview failed.") +
+          ` Local preview also failed: ${previewErr && previewErr.message ? previewErr.message : previewErr}`;
+        $("live-error").hidden = false;
+      }
+      $("live-error").hidden = false;
       return;
     }
 
     if (data.success) {
       renderLivePreview(data);
     } else {
-      $("live-error").textContent = data.error || "Live preview failed.";
+      $("live-error").textContent = liveFailureMessage(status, data, "Live preview failed.");
       $("live-error").hidden = false;
       $("live-status").textContent = "Choose another file.";
     }
