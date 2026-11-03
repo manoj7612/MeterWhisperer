@@ -4,7 +4,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
 from src.features import extract_features_from_signal
@@ -144,6 +144,20 @@ def health():
 @app.get("/")
 def index():
     return app.send_static_file("index.html")
+
+
+@app.get("/download/sample-csv")
+def download_sample_csv():
+    """Serve the sample converted CSV file for download."""
+    csv_path = ROOT / "data" / "test" / "Raw_Data_converted.csv"
+    if not csv_path.exists():
+        return jsonify({"error": "Sample CSV not found."}), 404
+    return send_file(
+        csv_path,
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name="Raw_Data_converted.csv",
+    )
 
 
 # =====================================================
