@@ -2,10 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The Meter Whisperer — Listen to the meter</title>
   <meta name="description" content="AI-powered vibration intelligence for abnormal water activity." />
   <link rel="stylesheet" href="/static/css/style.css?v=20261011c" />
+  <style>
+    /* Tabs: only show the active section. Nothing else in the design changes. */
+    .tab-hidden { display: none !important; }
+    .nav-links a[data-tab] { border-bottom: 2px solid transparent; padding-bottom: 2px; }
+    .nav-links a[data-tab].active { border-bottom-color: currentColor; }
+  </style>
 </head>
 <body>
   <div class="site-shell">
@@ -16,10 +22,11 @@
         <span class="brand-mark" aria-hidden="true">◉</span>
         The Meter Whisperer
       </a>
-      <nav class="nav-links">
-        <a href="#signal">The signal</a>
-        <a href="#system">How it works</a>
-        <a href="#demo">Demo</a>
+      <nav class="nav-links" role="tablist">
+        <a href="#signal" data-tab="signal" role="tab">The signal</a>
+        <a href="#system" data-tab="system" role="tab">How it works</a>
+        <a href="#demo" data-tab="demo" role="tab">Demo</a>
+        <a href="#live-preview" data-tab="live-preview" role="tab">Try your file</a>
         <span class="api-status" id="api-status" title="Backend status">● connecting</span>
       </nav>
     </header>
@@ -64,9 +71,9 @@
     </section>
 
     <!-- ===================== SIGNAL LAB ===================== -->
-    <section class="system-section section-paper" id="signal">
+    <section class="system-section section-paper" id="signal" data-tab-panel>
       <div class="page-width">
-        <p class="section-kicker">04 / The signal</p>
+        <p class="section-kicker">01 / The signal</p>
         <h2>Raw vibration<br /><span>becomes legible.</span></h2>
         <p class="section-lead">One time window. Four ways to see the same invisible event.</p>
 
@@ -100,9 +107,9 @@
     </section>
 
     <!-- ===================== SYSTEM ===================== -->
-    <section class="system-section" id="system">
+    <section class="system-section" id="system" data-tab-panel>
       <div class="page-width">
-        <p class="section-kicker">How it works</p>
+        <p class="section-kicker">02 / How it works</p>
         <h2>The meter already knows.</h2>
         <p class="section-lead">
           Water movement causes mechanical activity inside a traditional meter.
@@ -120,9 +127,9 @@
     </section>
 
     <!-- ===================== DEMO ===================== -->
-    <section class="system-section section-paper" id="demo">
+    <section class="system-section section-paper" id="demo" data-tab-panel>
       <div class="page-width">
-        <p class="section-kicker">Interactive AI demonstration</p>
+        <p class="section-kicker">03 / Interactive AI demonstration</p>
         <h2>Hear the leak.</h2>
         <p class="section-lead">
           Change the pattern to see how the product turns signal into a calm,
@@ -175,9 +182,9 @@
     </section>
 
     <!-- ===================== LIVE PREVIEW ===================== -->
-    <section class="system-section" id="live-preview">
+    <section class="system-section" id="live-preview" data-tab-panel>
       <div class="page-width">
-        <p class="section-kicker">Live leak check</p>
+        <p class="section-kicker">04 / Live leak check</p>
         <h2>Try it with your own recording.</h2>
         <p class="section-lead">
           Upload a .csv recorder file in the same format as the existing recordings.
@@ -195,6 +202,7 @@
                 Upload CSV
               </label>
             </div>
+            <p><a href="/data/test/Raw_Data_converted.csv" class="btn btn-ghost" download>Download sample CSV</a></p>
             <p class="recordings-note" id="live-status">Choose a CSV file to run the live preview.</p>
             <p class="warning" id="live-error" hidden></p>
             <div class="demo-disclaimer">Same columns as the data/raw/ recordings: time_s, acc_x_m_s2, acc_y_m_s2, acc_z_m_s2.</div>
@@ -241,6 +249,48 @@
   </div>
 
   <script src="/static/js/app.js?v=20261011c"></script>
+
+  <!-- Tabs: show one section at a time; nav links, hero buttons and #hash links all work -->
+  <script>
+  (function () {
+    var panels = Array.prototype.slice.call(document.querySelectorAll('[data-tab-panel]'));
+    var links = Array.prototype.slice.call(document.querySelectorAll('.nav-links a[data-tab]'));
+    var ids = panels.map(function (p) { return p.id; });
+    if (!panels.length) return;
+
+    function show(id, scroll) {
+      if (ids.indexOf(id) < 0) id = ids[0];
+      panels.forEach(function (p) { p.classList.toggle('tab-hidden', p.id !== id); });
+      links.forEach(function (a) {
+        var on = a.dataset.tab === id;
+        a.classList.toggle('active', on);
+        a.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      // let canvases / charts redraw now that the section is visible
+      window.dispatchEvent(new Event('resize'));
+      if (scroll) {
+        var el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    // any in-page link to a tab (nav, hero buttons)
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[href^="#"]');
+      if (!a) return;
+      var id = a.getAttribute('href').slice(1);
+      if (ids.indexOf(id) < 0) return;
+      e.preventDefault();
+      history.replaceState(null, '', '#' + id);
+      show(id, true);
+    });
+
+    window.addEventListener('hashchange', function () {
+      show(location.hash.slice(1), false);
+    });
+
+    show(location.hash.slice(1), false);
+  })();
+  </script>
 </body>
 </html>
-
